@@ -12,7 +12,8 @@ book = {
     "description": fields.String,
     "date_published": fields.String(attribute=lambda x: format_date(x.date_published)),
     "section_id": fields.Integer,
-    "avg_rating": fields.Float(default=0.0)  # This will be dynamically calculated
+    "avg_rating": fields.Float,
+    "total_ratings": fields.Integer
 }
 category = {
     "SectionID": fields.Integer,

@@ -4,8 +4,9 @@ from applications.model import User, Role
 from applications.config import Config
 from flask_restful import Api
 from flask_cors import CORS
-from flask_security import Security, hash_password, SQLAlchemyUserDatastore
+from flask_security import Security, hash_password
 from applications.user_datastore import user_datastore
+from seed_data import seed_books
 
 def create_app():
     app = Flask(__name__)
@@ -13,12 +14,15 @@ def create_app():
     app.config.from_object(Config)
     db.init_app(app)
 
+
+
     api = Api(app, prefix='/api/v1')
     
     app.security = Security(app, user_datastore)
 
     with app.app_context():
         db.create_all()
+        seed_books()
         librarian = app.security.datastore.find_or_create_role(name='librarian', description='Administrator')
         user = app.security.datastore.find_or_create_role(name='user', description='Customer')
         if not app.security.datastore.find_user(email="admin@gmail.com"):
@@ -60,3 +64,4 @@ def index():
 
 if __name__ == '__main__':
     app.run(debug=True)
+

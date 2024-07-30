@@ -3,16 +3,17 @@ from flask_restful import Resource, marshal_with
 from flask import make_response, jsonify, request as req
 from flask_security import auth_token_required, roles_required, roles_accepted, current_user
 from applications.model import *
-#from applications.model import Product as prd
+# from applications.model import Product as prd
 from applications.marshal import *
 from datetime import date, datetime, timedelta
 
-from flask_restful import Resource, marshal_with,reqparse
+from flask_restful import Resource, marshal_with, reqparse
 from flask import make_response, jsonify, request as req
 from applications.model import *
 from applications.marshal import *
 from datetime import datetime
 from sqlalchemy import and_, desc, func
+
 
 class MostRatedBooks(Resource):
     @marshal_with(book)
@@ -35,17 +36,20 @@ class BestSellers(Resource):
             .group_by(Transaction.book_id) \
             .order_by(desc('total')) \
             .limit(10).all()
-        
+
         book_ids = [b.book_id for b in best_sellers]
-        books = Books.query.filter(Books.book_id.in_(book_ids)).all()
+        books = Books.query.filter(Books.id.in_(book_ids)).all()
         return books
+
 
 class NewlyAddedBooks(Resource):
     @marshal_with(book)
     def get(self):
-        books = Books.query.order_by(desc(Books.date_published)).limit(10).all()
+        books = Books.query.order_by(
+            desc(Books.date_published)).limit(10).all()
         return books
-    
+
+
 class OwnedBooksAPI(Resource):
     @auth_token_required
     @roles_accepted('user')
@@ -56,59 +60,47 @@ class OwnedBooksAPI(Resource):
         books = Books.query.filter(Books.id.in_(book_ids)).all()
         return books
 
+
 class BorrowedBooksAPI(Resource):
     @auth_token_required
     @roles_accepted('user')
     @marshal_with(book)
     def get(self):
         today = date.today()
-        
+
         # Delete expired borrowed books
-        BorrowedBooks.query.filter(and_(BorrowedBooks.user_id == current_user.id, BorrowedBooks.date_to < today)).delete()
+        BorrowedBooks.query.filter(and_(
+            BorrowedBooks.user_id == current_user.id, BorrowedBooks.date_to < today)).delete()
         db.session.commit()
 
         # Fetch current borrowed books
-        borrowed_books = BorrowedBooks.query.filter(and_(BorrowedBooks.user_id == current_user.id, BorrowedBooks.date_to >= today)).all()
+        borrowed_books = BorrowedBooks.query.filter(and_(
+            BorrowedBooks.user_id == current_user.id, BorrowedBooks.date_to >= today)).all()
         book_ids = [bb.book_id for bb in borrowed_books]
         books = Books.query.filter(Books.id.in_(book_ids)).all()
         return books
+  # Assuming the models are imported from a models module
+
 
 class SearchBooksAPI(Resource):
     @marshal_with(book)
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('field', type=str, required=True, help="Field cannot be blank")
-        parser.add_argument('search', type=str, required=True, help="Search text cannot be blank")
-        args = parser.parse_args()
+        # Obtain query parameters
 
-        field = args['field']
-        search_text = args['search']
-        search_text_like = f"%{search_text}%"
+        filter = req.args.get('filter')
+        value = req.args.get('value')
 
-        if field == "name":
-            results = Books.query.filter(Books.name.ilike(search_text_like)).all()
-        elif field == "id":
-            results = Books.query.filter(Books.id.ilike(search_text_like)).all()
-        elif field == "author":
-            results = Books.query.filter(Books.author.ilike(search_text_like)).all()
-        elif field == "isbn_no":
-            results = Books.query.filter(Books.isbn_no.ilike(search_text_like)).all()
-        elif field == "price":
-            results = Books.query.filter(Books.price.ilike(search_text_like)).all()
-        elif field == "date_published":
-            results = Books.query.filter(Books.date_published.ilike(search_text_like)).all()
-        elif field == "section":
-            results = db.session.query(Books).join(Section).filter(Section.genre.ilike(search_text_like)).all()
+        if filter == "name":
+            books = Books.query.filter(Books.name.like(f'%{value}%')).all()
+        elif filter == "author":
+            books = Books.query.filter(Books.author.like(f'%{value}%')).all()
+        elif filter == "id":
+            books = Books.query.filter(Books.id == int(value)).all()
         else:
-            return make_response(jsonify({'message': 'Invalid search field'}), 400)
-        #GET /search_books?field=name&search=some_search_text
-        #GET /search_books?field=author&search=author_name
-        #GET /search_books?field=section&search=genre
-        return results
-    
-feedback_parser = reqparse.RequestParser()
-feedback_parser.add_argument('stars', type=int, required=True, help='Stars rating is required')
-feedback_parser.add_argument('feedback', type=str, required=True, help='Feedback text is required')
+            return make_response(jsonify({'message': 'Invalid filter type'}), 400)
+
+        return books
+
 
 class BookFeedbacks(Resource):
     @auth_token_required
@@ -119,7 +111,8 @@ class BookFeedbacks(Resource):
             return make_response(jsonify({'message': 'Book not found'}), 404)
 
         feedbacks = Feedbacks.query.filter_by(book_id=book_id).all()
-        avg_stars = db.session.query(func.avg(Feedbacks.stars)).filter_by(book_id=book_id).scalar()
+        avg_stars = db.session.query(
+            func.avg(Feedbacks.stars)).filter_by(book_id=book_id).scalar()
         avg_stars = avg_stars if avg_stars else 0
 
         feedbacks_response = []
@@ -149,7 +142,8 @@ class BookFeedbacks(Resource):
         if not book:
             return make_response(jsonify({'message': 'Book not found'}), 404)
 
-        existing_feedback = Feedbacks.query.filter_by(user_id=current_user.id, book_id=book_id).first()
+        existing_feedback = Feedbacks.query.filter_by(
+            user_id=current_user.id, book_id=book_id).first()
 
         if existing_feedback:
             existing_feedback.stars = stars
@@ -170,33 +164,40 @@ class BookFeedbacks(Resource):
             return make_response(jsonify({'message': 'Error saving feedback'}), 500)
 
         return make_response(jsonify({'message': 'Feedback submitted successfully'}), 200)
-    
+
+
 request_parser = reqparse.RequestParser()
-request_parser.add_argument('book_id', type=int, required=True, help='Book ID is required')
+request_parser.add_argument(
+    'book_id', type=int, required=True, help='Book ID is required')
+
 
 class UserEligibilityAPI(Resource):
     @auth_token_required
-    @roles_accepted('user')
+    @roles_accepted('user','librarian')
     def get(self):
         user_id = current_user.id
+        if current_user.has_role('user'):
+            user_id = current_user.id
+            print(user_id)
+            # Fetch user's owned books
+            owned_books = OwnedBooks.query.filter_by(user_id=user_id).all()
+            owned_book_ids = {book.book_id for book in owned_books}
 
-        # Fetch user's owned books
-        owned_books = OwnedBooks.query.filter_by(user_id=user_id).all()
-        owned_book_ids = {book.book_id for book in owned_books}
-        
-        # Fetch user's requests
-        requests = Requests.query.filter_by(user_id=user_id).all()
-        requested_book_ids = {req.book_id for req in requests}
-        
-        # Fetch user's borrowed books that are not expired
-        borrowed_books = BorrowedBooks.query.filter(BorrowedBooks.user_id == user_id, BorrowedBooks.date_to >= date.today()).all()
-        borrowed_book_ids = {borrow.book_id for borrow in borrowed_books}
+            # Fetch user's requests
+            requests = Requests.query.filter_by(user_id=user_id).all()
+            requested_book_ids = {req.book_id for req in requests}
 
-        return make_response(jsonify({
-            'owned_books': [book.book_id for book in owned_books],
-            'requested_books': [req.book_id for req in requests],
-            'borrowed_books': [borrow.book_id for borrow in borrowed_books]
-        }), 200)
+            # Fetch user's borrowed books that are not expired
+            borrowed_books = BorrowedBooks.query.filter(
+                BorrowedBooks.user_id == user_id, BorrowedBooks.date_to >= date.today()).all()
+            borrowed_book_ids = {borrow.book_id for borrow in borrowed_books}
+
+            return make_response(jsonify({'owned_books': list(owned_book_ids), 'requested_books': list(requested_book_ids), 'borrowed_books': list(borrowed_book_ids)}),200)
+        
+        elif current_user.has_role('librarian'):
+            print(user_id)
+            return make_response(jsonify({'message':'You are a librarian'}),200)
+
 
 class UserRequestAPI(Resource):
     @auth_token_required
@@ -213,18 +214,19 @@ class UserRequestAPI(Resource):
         # Check if the book is already requested by the user
         if Requests.query.filter_by(user_id=user_id, book_id=book_id).first():
             return make_response(jsonify({'message': 'You have already requested this book'}), 400)
-        
+
         # Check if the book is already borrowed and not yet returned
         if BorrowedBooks.query.filter(BorrowedBooks.user_id == user_id, BorrowedBooks.book_id == book_id, BorrowedBooks.date_to >= date.today()).first():
             return make_response(jsonify({'message': 'You have already borrowed this book'}), 400)
-        
+
         # Check the number of requests and borrowed books
         request_count = Requests.query.filter_by(user_id=user_id).count()
-        borrowed_count = BorrowedBooks.query.filter(BorrowedBooks.user_id == user_id, BorrowedBooks.date_to >= date.today()).count()
-        
+        borrowed_count = BorrowedBooks.query.filter(
+            BorrowedBooks.user_id == user_id, BorrowedBooks.date_to >= date.today()).count()
+
         if request_count >= 5:
             return make_response(jsonify({'message': 'You cannot request more than 5 books'}), 400)
-        
+
         if borrowed_count >= 5:
             return make_response(jsonify({'message': 'You cannot borrow more than 5 books'}), 400)
 
@@ -237,8 +239,9 @@ class UserRequestAPI(Resource):
         )
         db.session.add(new_request)
         db.session.commit()
-        
+
         return make_response(jsonify({'message': 'Book requested successfully'}), 200)
+
 
 class UserPurchaseAPI(Resource):
     @auth_token_required
@@ -251,7 +254,7 @@ class UserPurchaseAPI(Resource):
         # Check if the book is already owned
         if OwnedBooks.query.filter_by(user_id=user_id, book_id=book_id).first():
             return make_response(jsonify({'message': 'You already own this book'}), 400)
-        
+
         # Add the book to the OwnedBooks table
         new_owned_book = OwnedBooks(
             user_id=user_id,
@@ -260,15 +263,16 @@ class UserPurchaseAPI(Resource):
         )
         db.session.add(new_owned_book)
         db.session.commit()
-        
+
         return make_response(jsonify({'message': 'Book purchased successfully'}), 200)
+
 
 class LibrarianUserRequestsAPI(Resource):
     @auth_token_required
     @roles_accepted('librarian')
     def get(self, user_id):
         requests = Requests.query.filter_by(user_id=user_id).all()
-        
+
         if not requests:
             return make_response(jsonify({'message': 'No requests found for this user'}), 404)
 
@@ -288,23 +292,25 @@ class LibrarianUserRequestsAPI(Resource):
         }
 
         return make_response(jsonify(response), 200)
+
+
 class LibrarianManageRequestAPI(Resource):
     @auth_token_required
     @roles_accepted('librarian')
     def post(self, request_id, action):
         request_entry = Requests.query.get(request_id)
-        
+
         if not request_entry:
             return make_response(jsonify({'message': 'Request not found'}), 404)
-        
+
         if action not in ['accept', 'reject']:
             return make_response(jsonify({'message': 'Invalid action'}), 400)
-        
+
         if action == 'accept':
             # Remove from Requests table
             db.session.delete(request_entry)
             db.session.commit()
-            
+
             # Add to BorrowedBooks table
             new_borrowed_book = BorrowedBooks(
                 user_id=request_entry.user_id,
@@ -317,9 +323,9 @@ class LibrarianManageRequestAPI(Resource):
         elif action == 'reject':
             # Just remove from Requests table
             db.session.delete(request_entry)
-        
+
         db.session.commit()
-        
+
         return make_response(jsonify({'message': f'Request {action}ed successfully'}), 200)
 
 
@@ -351,7 +357,8 @@ class LibrarianEditDeleteBookAPI(Resource):
             book.price = args['price']
         if args['date_published']:
             try:
-                book.date_published = datetime.strptime(args['date_published'], '%Y-%m-%d').date()
+                book.date_published = datetime.strptime(
+                    args['date_published'], '%Y-%m-%d').date()
             except ValueError:
                 return make_response(jsonify({'message': 'Invalid date format. Use YYYY-MM-DD.'}), 400)
         if args['section_id']:
@@ -377,7 +384,8 @@ class LibrarianEditSectionAPI(Resource):
     @roles_accepted('librarian')
     def put(self, section_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('genre', type=str, required=True, help='Genre cannot be blank')
+        parser.add_argument('genre', type=str, required=True,
+                            help='Genre cannot be blank')
         args = parser.parse_args()
 
         section = Section.query.get(section_id)
@@ -416,7 +424,8 @@ class LibrarianEditDeleteBookAPI(Resource):
             book.price = args['price']
         if args['date_published']:
             try:
-                book.date_published = datetime.strptime(args['date_published'], '%Y-%m-%d').date()
+                book.date_published = datetime.strptime(
+                    args['date_published'], '%Y-%m-%d').date()
             except ValueError:
                 return make_response(jsonify({'message': 'Invalid date format. Use YYYY-MM-DD.'}), 400)
         if args['section_id']:
@@ -442,7 +451,8 @@ class LibrarianEditSectionAPI(Resource):
     @roles_accepted('librarian')
     def put(self, section_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('genre', type=str, required=True, help='Genre cannot be blank')
+        parser.add_argument('genre', type=str, required=True,
+                            help='Genre cannot be blank')
         args = parser.parse_args()
 
         section = Section.query.get(section_id)
@@ -463,7 +473,8 @@ class UserInfoAPI(Resource):
             return make_response(jsonify({'message': 'User not found'}), 404)
 
         # Fetch owned books
-        owned_books = db.session.query(Books).join(OwnedBooks).filter(OwnedBooks.user_id == user_id).all()
+        owned_books = db.session.query(Books).join(
+            OwnedBooks).filter(OwnedBooks.user_id == user_id).all()
 
         # Fetch borrowed books
         borrowed_books = db.session.query(Books, BorrowedBooks.date_from, BorrowedBooks.date_to, Admin.admin_name) \
@@ -489,8 +500,12 @@ class UserInfoAPI(Resource):
         }
 
         return make_response(jsonify(response), 200)
+
+
 remove_borrowed_parser = reqparse.RequestParser()
-remove_borrowed_parser.add_argument('book_id', type=int, required=True, help='Book ID is required')
+remove_borrowed_parser.add_argument(
+    'book_id', type=int, required=True, help='Book ID is required')
+
 
 class RemoveBorrowedBookAPI(Resource):
     @auth_token_required
@@ -501,7 +516,7 @@ class RemoveBorrowedBookAPI(Resource):
 
         # Find the borrowed book entry
         borrowed_entry = BorrowedBooks.query.filter_by(book_id=book_id).first()
-        
+
         if not borrowed_entry:
             return make_response(jsonify({'message': 'Borrowed book entry not found'}), 404)
 

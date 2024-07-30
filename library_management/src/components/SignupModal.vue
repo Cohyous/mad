@@ -1,4 +1,4 @@
-// src/components/SignupModal.vue
+
 <template>
   <div class="modal fade" id="userSignup" tabindex="-1" aria-labelledby="signupModalLabel" aria-hidden="true">
     <div class="modal-dialog">

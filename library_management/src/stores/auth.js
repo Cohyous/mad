@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue';
 import { defineStore } from 'pinia';
+import Cookies from 'js-cookie';
 
 export const auth = defineStore('auth', () => {
     const backend_url = 'http://127.0.0.1:5000';
@@ -98,6 +99,7 @@ export const auth = defineStore('auth', () => {
             } else {
                 const data = await response.json();
                 if (data.user.auth_token) {
+                    Cookies.set('SECURITY_TOKEN_AUTHENTICATION_HEADER', data.user.auth_token, { expires: 7 });
                     setToken(data.user.auth_token);
                     const user_dets = {
                         username: data.user.username,

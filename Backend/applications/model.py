@@ -65,6 +65,8 @@ class Books(db.Model):
     name = db.Column(db.String(500), nullable=False)
     description = db.Column(db.String(500))
     date_published = db.Column(db.Date, nullable=True)
+    avg_rating = db.Column(db.Float, nullable=True ,default=0.0)
+    total_ratings = db.Column(db.Integer, nullable=True, default=0)
 
     section_id = db.Column(db.Integer, db.ForeignKey('section.id'), nullable=False)
 

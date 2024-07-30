@@ -4,6 +4,7 @@ import { auth } from '@/stores/auth';
 import { messageStore } from '@/stores/messageStore';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import Cookies from 'js-cookie';
 
 const email = ref('');
 const password = ref('');
@@ -22,7 +23,6 @@ async function onSubmit() {
     (resp)=>{
       message_store.setmessage(resp.message)
       if(resp.status){
-        console.log(resp)
         auth_store.updateToken()
         auth_store.updateUserDetails()
         console.log("here")
