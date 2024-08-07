@@ -10,7 +10,7 @@ class Login(Resource):
 
         email = recieved_data.get('email')
         password = recieved_data.get('password')
-
+        print(email,password)
         if not email or not password:
             return make_response(jsonify({'message':'Email and Password are required'}),400)
         

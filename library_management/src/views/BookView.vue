@@ -47,7 +47,7 @@ export default {
 
     const fetchBookDetails = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/v1/search_books?filter=id&value=${bookId}`);
+        const response = await axios.get(`http://127.0.0.1:5000/api/v1/search_books?filter=id&value=${bookId}`);
         if (response.data.length > 0) {
           book.value = response.data[0];
         } else {
@@ -61,7 +61,21 @@ export default {
 
     const fetchUserEligibility = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/v1/user_eligibility');
+        console.log(localStorage.getItem('token'))
+        const response = await axios.get('http://127.0.0.1:5000/api/v1/user_eligibility',
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Authentication-Token': localStorage.getItem('token'),
+          }
+      })
+      .then(response => {
+        console.log(response.data);
+  })
+      .catch(error => {
+        console.error('There was an error making the request:', error);
+      });
         if (response.data.message === 'You are a librarian') {
           isLibrarian.value = true;
         } else {

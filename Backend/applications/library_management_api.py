@@ -1,7 +1,7 @@
 from sqlite3 import IntegrityError
 from flask_restful import Resource, marshal_with
 from flask import make_response, jsonify, request as req
-from flask_security import auth_token_required, roles_required, roles_accepted, current_user
+from flask_security import auth_token_required, roles_required, roles_accepted, current_user,auth_required
 from applications.model import *
 # from applications.model import Product as prd
 from applications.marshal import *
@@ -17,6 +17,7 @@ from sqlalchemy import and_, desc, func
 
 class MostRatedBooks(Resource):
     @marshal_with(book)
+    
     def get(self):
         books = db.session.query(Books, func.coalesce(func.avg(Feedbacks.stars), 0).label('avg_rating')) \
             .outerjoin(Feedbacks, Books.id == Feedbacks.book_id) \
@@ -103,7 +104,7 @@ class SearchBooksAPI(Resource):
 
 
 class BookFeedbacks(Resource):
-    @auth_token_required
+    @auth_required
     @roles_accepted('user')
     def get(self, book_id):
         book = Books.query.get(book_id)
@@ -172,6 +173,9 @@ request_parser.add_argument(
 
 
 class UserEligibilityAPI(Resource):
+    @auth_token_required
+    def post(self):
+        return "This works"
     @auth_token_required
     @roles_accepted('user','librarian')
     def get(self):
