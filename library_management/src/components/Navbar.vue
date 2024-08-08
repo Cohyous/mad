@@ -59,6 +59,9 @@ onMounted(() => {
         </form>
         <ul class="navbar-nav ms-3" v-if="isLoggedIn">
           <li class="nav-item">
+            <RouterLink class="nav-link" to="/collections">Collections</RouterLink>
+          </li>
+          <li class="nav-item">
             <span class="nav-link">{{ username }}</span>
           </li>
           <li class="nav-item">
@@ -69,6 +72,7 @@ onMounted(() => {
               Logout
             </button>
           </li>
+
         </ul>
         <ul class="navbar-nav ms-3" v-else>
           <li class="nav-item">

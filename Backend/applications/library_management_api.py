@@ -6,14 +6,24 @@ from applications.model import *
 # from applications.model import Product as prd
 from applications.marshal import *
 from datetime import date, datetime, timedelta
-
+from functools import wraps
 from flask_restful import Resource, marshal_with, reqparse
 from flask import make_response, jsonify, request as req
 from applications.model import *
 from applications.marshal import *
 from datetime import datetime
-from sqlalchemy import and_, desc, func
+from sqlalchemy import and_, desc, func 
 
+
+def add_cors_headers(f):
+    @wraps(f)
+    def wrap(*args, **kwargs):
+        resp = make_response(f(*args, **kwargs))
+        resp.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
+        resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS, PUT, DELETE'
+        resp.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        return resp
+    return wrap
 
 class MostRatedBooks(Resource):
     @marshal_with(book)
@@ -106,7 +116,9 @@ class SearchBooksAPI(Resource):
 class BookFeedbacks(Resource):
     @auth_required
     @roles_accepted('user')
-    def get(self, book_id):
+    @add_cors_headers
+    def get(self):
+        book_id = req.args.get('book_id')
         book = Books.query.get(book_id)
         if not book:
             return make_response(jsonify({'message': 'Book not found'}), 404)
@@ -134,10 +146,19 @@ class BookFeedbacks(Resource):
 
     @auth_token_required
     @roles_accepted('user')
-    def post(self, book_id):
-        args = feedback_parser.parse_args()
-        stars = args['stars']
-        feedback_text = args['feedback']
+    @add_cors_headers
+    def post(self):
+    # Extract data from the request body
+        data = req.get_json()
+        book_id = data.get('book_id')
+        stars = data.get('stars')
+        feedback_text = data.get('feedback')
+
+        if not book_id:
+            return make_response(jsonify({'message': 'Book ID is required'}), 400)
+        
+        if stars is None or feedback_text is None:
+            return make_response(jsonify({'message': 'Stars and feedback are required'}), 400)
 
         book = Books.query.get(book_id)
         if not book:
